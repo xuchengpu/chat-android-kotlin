@@ -59,6 +59,7 @@ import com.hyphenate.chatdemo.utils.AESEncryptor
 import com.hyphenate.chatdemo.utils.PhoneNumberUtils
 import com.hyphenate.chatdemo.utils.ToastUtils.showToast
 import com.hyphenate.chatdemo.viewmodel.LoginFragmentViewModel
+import com.hyphenate.cloud.EMHttpClient
 import com.hyphenate.easeui.base.ChatUIKitBaseFragment
 import com.hyphenate.easeui.common.ChatClient
 import com.hyphenate.easeui.common.ChatError
@@ -71,9 +72,11 @@ import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import org.checkerframework.common.reflection.qual.GetClass
 import org.json.JSONObject
 import java.util.Locale
 import javax.crypto.spec.SecretKeySpec
+import kotlin.collections.hashMapOf
 
 class LoginFragment : ChatUIKitBaseFragment<DemoFragmentLoginBinding>(), View.OnClickListener,
     TextWatcher,
@@ -89,6 +92,7 @@ class LoginFragment : ChatUIKitBaseFragment<DemoFragmentLoginBinding>(), View.On
     private var isShowingDialog = false
     private var countDownTimer: CustomCountDownTimer? = null
     private val VERIFY_CODE_URL = "https://downloadsdk.easemob.com/downloads/IMDemo/sms/index.html"
+    private val TAG = javaClass.simpleName
 
     override fun getViewBinding(
         inflater: LayoutInflater,
@@ -140,8 +144,38 @@ class LoginFragment : ChatUIKitBaseFragment<DemoFragmentLoginBinding>(), View.On
         eyeOpen = ContextCompat.getDrawable(mContext, R.drawable.d_pwd_show)
         clear = ContextCompat.getDrawable(mContext, R.drawable.d_clear)
         binding?.etLoginPhone?.showRightDrawable(clear)
-        isDeveloperMode = DemoHelper.getInstance().getDataModel().isDeveloperMode()
+        isDeveloperMode = true
         resetView(isDeveloperMode)
+        getUsernameFromIntent()
+    }
+
+    private fun getUsernameFromIntent() {
+        try {
+            Thread{
+                var url= "http://47.93.162.76/get_userid"
+                val response = EMHttpClient.getInstance().httpExecute(url, hashMapOf(), null, "GET")
+                EMLog.e(TAG, "getUsernameFromIntent response: $response")
+                if (response.code==200){
+                    val content = response.content
+                    if (!TextUtils.isEmpty(content)) {
+                        val jsonObject = JSONObject(content)
+                        val userId = jsonObject.optString("user_id")
+                        if (!TextUtils.isEmpty(userId)) {
+                            mUserPhone = userId
+                            binding?.etLoginPhone?.post {
+                                binding?.etLoginPhone?.setText(mUserPhone)
+                                binding?.etLoginCode?.setText("1")
+                                binding?.cbSelect?.isChecked = true
+                                mContext?.hideSoftKeyboard()
+                                loginToServer()
+                            }
+                        }
+                    }
+                }
+            }.start()
+        }catch (exception: Exception) {
+            EMLog.e(TAG, "getUsernameFromIntent error: ${exception.message}")
+        }
     }
 
     override fun onClick(v: View) {
