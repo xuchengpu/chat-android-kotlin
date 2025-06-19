@@ -59,6 +59,8 @@ class SplashActivity : BaseInitActivity<DemoSplashActivityBinding>() {
     }
 
     private fun checkIfAgreePrivacy() {
+        DemoHelper.getInstance().getDataModel().setAgreeAgreement(true)//temp for test
+        DemoHelper.getInstance().initSDK()
         if (DemoHelper.getInstance().getDataModel().isAgreeAgreement().not()) {
             showPrivacyDialog()
         } else {
